@@ -2,10 +2,7 @@ import streamlit as st
 import sqlite3
 import hashlib
 import requests
-import schedule
-import time
-import threading
-from plyer import notification
+from datetime import datetime
 
 # -----------------------------
 # DATABASE
@@ -30,7 +27,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # -----------------------------
-# SIGNUP FUNCTION
+# SIGNUP
 # -----------------------------
 
 def signup_user(email, password):
@@ -45,7 +42,7 @@ def signup_user(email, password):
         return False
 
 # -----------------------------
-# LOGIN FUNCTION
+# LOGIN
 # -----------------------------
 
 def login_user(email, password):
@@ -55,9 +52,7 @@ def login_user(email, password):
         (email, hash_password(password))
     )
 
-    data = cursor.fetchone()
-
-    return data
+    return cursor.fetchone()
 
 # -----------------------------
 # RESET PASSWORD
@@ -69,20 +64,22 @@ def reset_password(email, new_password):
     user = cursor.fetchone()
 
     if user:
+
         cursor.execute(
             "UPDATE users SET password=? WHERE email=?",
             (hash_password(new_password), email)
         )
+
         conn.commit()
         return True
-    else:
-        return False
+
+    return False
 
 # -----------------------------
-# AI FUNCTION
+# AI MEDICINE EXPLANATION
 # -----------------------------
 
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
 def ask_ai(medicine):
 
@@ -90,51 +87,26 @@ def ask_ai(medicine):
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:8501",
-        "X-Title": "Medicine Reminder"
+        "Content-Type": "application/json"
     }
 
     data = {
-        "model": "openai/gpt-3.5-turbo",
+        "model": "mistralai/mistral-7b-instruct",
         "messages": [
             {
                 "role": "user",
-                "content": f"Explain the medicine {medicine}, its uses, dosage, and precautions in simple words."
+                "content": f"Explain the medicine {medicine}, its uses, dosage and precautions in simple words."
             }
         ]
     }
 
     response = requests.post(url, headers=headers, json=data)
-
     result = response.json()
 
     if "choices" not in result:
         return f"API Error: {result}"
 
     return result["choices"][0]["message"]["content"]
-
-# -----------------------------
-# NOTIFICATION
-# -----------------------------
-
-def send_notification(medicine):
-
-    notification.notify(
-        title="Medicine Reminder",
-        message=f"Time to take your medicine: {medicine}",
-        timeout=10
-    )
-
-def run_scheduler():
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-thread = threading.Thread(target=run_scheduler)
-thread.daemon = True
-thread.start()
 
 # -----------------------------
 # SESSION STATE
@@ -147,19 +119,17 @@ if "logged_in" not in st.session_state:
 # LOGIN / SIGNUP PAGE
 # -----------------------------
 
-if st.session_state.logged_in == False:
+if not st.session_state.logged_in:
 
     st.title("💊 AI Medicine Reminder System")
 
     menu = ["Login", "Signup", "Forgot Password"]
     choice = st.sidebar.selectbox("Menu", menu)
 
-    # ---------------- LOGIN ----------------
+    email = st.text_input("Email")
+
     if choice == "Login":
 
-        st.subheader("Login Section")
-
-        email = st.text_input("Email")
         password = st.text_input("Password", type="password")
 
         if st.button("Login"):
@@ -170,20 +140,15 @@ if st.session_state.logged_in == False:
 
                 st.session_state.logged_in = True
                 st.session_state.email = email
-
-                st.success("Login successful")
+                st.success("Login Successful")
                 st.rerun()
 
             else:
                 st.error("Invalid email or password")
 
-    # ---------------- SIGNUP ----------------
     elif choice == "Signup":
 
-        st.subheader("Create New Account")
-
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
+        password = st.text_input("Create Password", type="password")
 
         if st.button("Create Account"):
 
@@ -194,20 +159,16 @@ if st.session_state.logged_in == False:
             else:
                 st.error("User already exists")
 
-    # ---------------- FORGOT PASSWORD ----------------
     elif choice == "Forgot Password":
 
-        st.subheader("Reset Your Password")
-
-        email = st.text_input("Enter your registered email")
-        new_password = st.text_input("Enter new password", type="password")
+        new_password = st.text_input("Enter New Password", type="password")
 
         if st.button("Reset Password"):
 
             success = reset_password(email, new_password)
 
             if success:
-                st.success("Password updated successfully. Please login.")
+                st.success("Password updated successfully")
 
             else:
                 st.error("Email not found")
@@ -221,7 +182,6 @@ if st.session_state.logged_in:
     st.sidebar.write(f"Logged in as {st.session_state.email}")
 
     if st.sidebar.button("Logout"):
-
         st.session_state.logged_in = False
         st.rerun()
 
@@ -231,26 +191,41 @@ if st.session_state.logged_in:
 
     reminder_time = st.text_input(
         "Enter Reminder Time (HH:MM)",
-        placeholder="Example: 14:35"
+        placeholder="Example: 14:30"
     )
 
     if st.button("Set Reminder"):
 
-        schedule.every().day.at(reminder_time).do(
-            send_notification, medicine
-        )
+        st.session_state.reminder_time = reminder_time
+        st.session_state.medicine = medicine
 
         st.success(f"Reminder set for {medicine} at {reminder_time}")
+
+    # Reminder check
+
+    if "reminder_time" in st.session_state:
+
+        current_time = datetime.now().strftime("%H:%M")
+
+        if current_time == st.session_state.reminder_time:
+
+            st.warning(
+                f"💊 Time to take your medicine: {st.session_state.medicine}"
+            )
+
+    # AI Explanation
 
     st.subheader("AI Medicine Explanation")
 
     if st.button("Explain Medicine"):
 
         if medicine == "":
-            st.warning("Enter medicine name")
+            st.warning("Please enter medicine name")
 
         else:
-            with st.spinner("AI is analyzing medicine..."):
+
+            with st.spinner("AI analyzing medicine..."):
+
                 explanation = ask_ai(medicine)
 
             st.write(explanation)
