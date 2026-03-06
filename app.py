@@ -196,22 +196,19 @@ if st.session_state.logged_in:
 
     if st.button("Set Reminder"):
 
-        st.session_state.reminder_time = reminder_time
-        st.session_state.medicine = medicine
+    st.session_state.reminder_time = reminder_time
+    st.session_state.medicine = medicine
 
-        st.success(f"Reminder set for {medicine} at {reminder_time}")
+    st.success(f"Reminder set for {medicine} at {reminder_time}")
 
-    # Reminder check
+# Check reminder
+if "reminder_time" in st.session_state:
 
-    if "reminder_time" in st.session_state:
+    current_time = datetime.now().strftime("%H:%M")
 
-        current_time = datetime.now().strftime("%H:%M")
+    if current_time == st.session_state.reminder_time:
 
-        if current_time == st.session_state.reminder_time:
-
-            st.warning(
-                f"💊 Time to take your medicine: {st.session_state.medicine}"
-            )
+        st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
 
     # AI Explanation
 
