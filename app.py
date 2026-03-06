@@ -6,15 +6,13 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 # -----------------------------
-# AUTO REFRESH (for reminders)
+# AUTO REFRESH
 # -----------------------------
-
-st_autorefresh(interval=30000, key="refresh")  # refresh every 30 seconds
+st_autorefresh(interval=30000, key="refresh")
 
 # -----------------------------
 # DATABASE
 # -----------------------------
-
 conn = sqlite3.connect("users.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -30,16 +28,13 @@ conn.commit()
 # -----------------------------
 # PASSWORD HASH
 # -----------------------------
-
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # -----------------------------
 # SIGNUP
 # -----------------------------
-
 def signup_user(email, password):
-
     try:
         cursor.execute(
             "INSERT INTO users VALUES (?,?)",
@@ -47,15 +42,12 @@ def signup_user(email, password):
         )
         conn.commit()
         return True
-
     except:
         return False
-
 
 # -----------------------------
 # LOGIN
 # -----------------------------
-
 def login_user(email, password):
 
     cursor.execute(
@@ -65,11 +57,9 @@ def login_user(email, password):
 
     return cursor.fetchone()
 
-
 # -----------------------------
 # RESET PASSWORD
 # -----------------------------
-
 def reset_password(email, new_password):
 
     cursor.execute(
@@ -91,11 +81,9 @@ def reset_password(email, new_password):
 
     return False
 
-
 # -----------------------------
 # AI MEDICINE EXPLANATION
 # -----------------------------
-
 OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
 def ask_ai(medicine):
@@ -112,7 +100,7 @@ def ask_ai(medicine):
         "messages": [
             {
                 "role": "user",
-                "content": f"Explain the medicine {medicine}, its uses, dosage and precautions in simple simple words."
+                "content": f"Explain the medicine {medicine}, its uses, dosage and precautions in simple words."
             }
         ]
     }
@@ -126,19 +114,15 @@ def ask_ai(medicine):
 
     return result["choices"][0]["message"]["content"]
 
-
 # -----------------------------
 # SESSION STATE
 # -----------------------------
-
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-
 
 # -----------------------------
 # LOGIN / SIGNUP PAGE
 # -----------------------------
-
 if not st.session_state.logged_in:
 
     st.title("💊 AI Medicine Reminder System")
@@ -167,9 +151,7 @@ if not st.session_state.logged_in:
                 st.rerun()
 
             else:
-
                 st.error("Invalid email or password")
-
 
     elif choice == "Signup":
 
@@ -182,9 +164,7 @@ if not st.session_state.logged_in:
                 st.success("Account created successfully")
 
             else:
-
                 st.error("User already exists")
-
 
     elif choice == "Forgot Password":
 
@@ -195,18 +175,13 @@ if not st.session_state.logged_in:
             success = reset_password(email, new_password)
 
             if success:
-
                 st.success("Password updated successfully")
-
             else:
-
                 st.error("Email not found")
-
 
 # -----------------------------
 # DASHBOARD
 # -----------------------------
-
 if st.session_state.logged_in:
 
     st.sidebar.write(f"Logged in as {st.session_state.email}")
@@ -215,7 +190,6 @@ if st.session_state.logged_in:
 
         st.session_state.logged_in = False
         st.rerun()
-
 
     st.title("💊 Medicine Reminder Dashboard")
 
@@ -226,38 +200,66 @@ if st.session_state.logged_in:
         placeholder="Example: 14:30"
     )
 
+    days = st.number_input(
+        "Number of days for reminder",
+        min_value=1,
+        max_value=30,
+        value=1
+    )
 
     if st.button("Set Reminder"):
 
         st.session_state.reminder_time = reminder_time
         st.session_state.medicine = medicine
+        st.session_state.days = days
+        st.session_state.start_date = datetime.now().date()
+        st.session_state.alerted = False
 
-        st.success(f"Reminder set for {medicine} at {reminder_time}")
-
+        st.success(f"Reminder set for {medicine} at {reminder_time} for {days} days")
 
     # -----------------------------
     # CHECK REMINDER
     # -----------------------------
-
     if "reminder_time" in st.session_state:
 
         current_time = datetime.now().strftime("%H:%M")
 
-        if current_time == st.session_state.reminder_time:
+        today = datetime.now().date()
 
-            st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
+        start = st.session_state.start_date
 
+        total_days = st.session_state.days
+
+        if (today - start).days < total_days:
+
+            if current_time >= st.session_state.reminder_time and not st.session_state.alerted:
+
+                st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
+
+                # Browser Popup Notification
+                st.markdown(f"""
+                <script>
+                if (Notification.permission !== "granted") {{
+                    Notification.requestPermission();
+                }} else {{
+                    new Notification("Medicine Reminder", {{
+                        body: "Time to take {st.session_state.medicine}",
+                        icon: "https://cdn-icons-png.flaticon.com/512/2966/2966481.png"
+                    }});
+                }}
+                </script>
+                """, unsafe_allow_html=True)
+
+                st.session_state.alerted = True
 
     # -----------------------------
     # AI MEDICINE EXPLANATION
     # -----------------------------
-
     st.subheader("AI Medicine Explanation")
 
     if st.button("Explain Medicine"):
 
         if medicine == "":
-
             st.warning("Please enter medicine name")
 
         else:
