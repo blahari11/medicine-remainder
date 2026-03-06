@@ -1,0 +1,18 @@
+credentials:
+  usernames:
+    lahari:
+      email: lahari@gmail.com
+      name: Lahari
+      password: abc123
+    user1:
+      email: user1@gmail.com
+      name: User One
+      password: xyz123
+
+cookie:
+  expiry_days: 30
+  key: some_signature_key
+  name: medicine_reminder_cookie
+
+preauthorized:
+  emails: []
