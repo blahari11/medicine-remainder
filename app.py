@@ -3,7 +3,13 @@ import sqlite3
 import hashlib
 import requests
 from datetime import datetime
-import time
+from streamlit_autorefresh import st_autorefresh
+
+# -----------------------------
+# AUTO REFRESH (for reminders)
+# -----------------------------
+
+st_autorefresh(interval=30000, key="refresh")  # refresh every 30 seconds
 
 # -----------------------------
 # DATABASE
@@ -18,6 +24,7 @@ email TEXT PRIMARY KEY,
 password TEXT
 )
 """)
+
 conn.commit()
 
 # -----------------------------
@@ -32,6 +39,7 @@ def hash_password(password):
 # -----------------------------
 
 def signup_user(email, password):
+
     try:
         cursor.execute(
             "INSERT INTO users VALUES (?,?)",
@@ -39,8 +47,10 @@ def signup_user(email, password):
         )
         conn.commit()
         return True
+
     except:
         return False
+
 
 # -----------------------------
 # LOGIN
@@ -55,13 +65,18 @@ def login_user(email, password):
 
     return cursor.fetchone()
 
+
 # -----------------------------
 # RESET PASSWORD
 # -----------------------------
 
 def reset_password(email, new_password):
 
-    cursor.execute("SELECT * FROM users WHERE email=?", (email,))
+    cursor.execute(
+        "SELECT * FROM users WHERE email=?",
+        (email,)
+    )
+
     user = cursor.fetchone()
 
     if user:
@@ -76,6 +91,7 @@ def reset_password(email, new_password):
 
     return False
 
+
 # -----------------------------
 # AI MEDICINE EXPLANATION
 # -----------------------------
@@ -88,16 +104,15 @@ def ask_ai(medicine):
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": "https://streamlit.io",
         "Content-Type": "application/json"
     }
 
     data = {
-        "model": "mistralai/mistral-7b-instruct",
+        "model": "openai/gpt-3.5-turbo",
         "messages": [
             {
                 "role": "user",
-                "content": f"Explain the medicine {medicine}, its uses, dosage and precautions in simple words."
+                "content": f"Explain the medicine {medicine}, its uses, dosage and precautions in simple simple words."
             }
         ]
     }
@@ -111,12 +126,14 @@ def ask_ai(medicine):
 
     return result["choices"][0]["message"]["content"]
 
+
 # -----------------------------
 # SESSION STATE
 # -----------------------------
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+
 
 # -----------------------------
 # LOGIN / SIGNUP PAGE
@@ -127,6 +144,7 @@ if not st.session_state.logged_in:
     st.title("💊 AI Medicine Reminder System")
 
     menu = ["Login", "Signup", "Forgot Password"]
+
     choice = st.sidebar.selectbox("Menu", menu)
 
     email = st.text_input("Email")
@@ -143,11 +161,15 @@ if not st.session_state.logged_in:
 
                 st.session_state.logged_in = True
                 st.session_state.email = email
+
                 st.success("Login Successful")
+
                 st.rerun()
 
             else:
+
                 st.error("Invalid email or password")
+
 
     elif choice == "Signup":
 
@@ -160,7 +182,9 @@ if not st.session_state.logged_in:
                 st.success("Account created successfully")
 
             else:
+
                 st.error("User already exists")
+
 
     elif choice == "Forgot Password":
 
@@ -171,10 +195,13 @@ if not st.session_state.logged_in:
             success = reset_password(email, new_password)
 
             if success:
+
                 st.success("Password updated successfully")
 
             else:
+
                 st.error("Email not found")
+
 
 # -----------------------------
 # DASHBOARD
@@ -185,8 +212,10 @@ if st.session_state.logged_in:
     st.sidebar.write(f"Logged in as {st.session_state.email}")
 
     if st.sidebar.button("Logout"):
+
         st.session_state.logged_in = False
         st.rerun()
+
 
     st.title("💊 Medicine Reminder Dashboard")
 
@@ -197,12 +226,14 @@ if st.session_state.logged_in:
         placeholder="Example: 14:30"
     )
 
+
     if st.button("Set Reminder"):
 
         st.session_state.reminder_time = reminder_time
         st.session_state.medicine = medicine
 
         st.success(f"Reminder set for {medicine} at {reminder_time}")
+
 
     # -----------------------------
     # CHECK REMINDER
@@ -216,6 +247,7 @@ if st.session_state.logged_in:
 
             st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
 
+
     # -----------------------------
     # AI MEDICINE EXPLANATION
     # -----------------------------
@@ -225,6 +257,7 @@ if st.session_state.logged_in:
     if st.button("Explain Medicine"):
 
         if medicine == "":
+
             st.warning("Please enter medicine name")
 
         else:
