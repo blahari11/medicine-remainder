@@ -3,6 +3,7 @@ import sqlite3
 import hashlib
 import requests
 from datetime import datetime
+import time
 
 # -----------------------------
 # DATABASE
@@ -87,6 +88,7 @@ def ask_ai(medicine):
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "HTTP-Referer": "https://streamlit.io",
         "Content-Type": "application/json"
     }
 
@@ -101,6 +103,7 @@ def ask_ai(medicine):
     }
 
     response = requests.post(url, headers=headers, json=data)
+
     result = response.json()
 
     if "choices" not in result:
@@ -196,21 +199,26 @@ if st.session_state.logged_in:
 
     if st.button("Set Reminder"):
 
-    st.session_state.reminder_time = reminder_time
-    st.session_state.medicine = medicine
+        st.session_state.reminder_time = reminder_time
+        st.session_state.medicine = medicine
 
-    st.success(f"Reminder set for {medicine} at {reminder_time}")
+        st.success(f"Reminder set for {medicine} at {reminder_time}")
 
-# Check reminder
-if "reminder_time" in st.session_state:
+    # -----------------------------
+    # CHECK REMINDER
+    # -----------------------------
 
-    current_time = datetime.now().strftime("%H:%M")
+    if "reminder_time" in st.session_state:
 
-    if current_time == st.session_state.reminder_time:
+        current_time = datetime.now().strftime("%H:%M")
 
-        st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
+        if current_time == st.session_state.reminder_time:
 
-    # AI Explanation
+            st.warning(f"💊 Time to take your medicine: {st.session_state.medicine}")
+
+    # -----------------------------
+    # AI MEDICINE EXPLANATION
+    # -----------------------------
 
     st.subheader("AI Medicine Explanation")
 
